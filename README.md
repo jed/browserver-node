@@ -1,4 +1,4 @@
 browserver-node
 ===============
 
-෴ Browserver proxy for node.js ෴
+෴ A browserver proxy for node.js ෴

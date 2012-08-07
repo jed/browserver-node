@@ -135,6 +135,8 @@ Client.prototype.attachSocket = function(socket) {
 Client.prototype.handleClose = function(){}
 
 Client.prototype.handleMessage = function(data) {
+  var self = this
+
   try { data = JSON.parse(data) }
   catch (error) { return this.emit("error", error) }
 
@@ -150,6 +152,40 @@ Client.prototype.handleMessage = function(data) {
     res.end(data.body)
 
     delete this.responses[id]
+  }
+
+  else if (data.method) {
+    data.path = data.url
+    delete data.path
+
+    data.host = data.headers.host
+    delete data.headers.host
+
+    var id = data.headers["x-brow-req-id"]
+    delete data.headers["x-brow-req-id"]
+
+    var req = http.request(data, function(res) {
+      var body = ""
+
+      res.headers["x-brow-req-id"] = id
+      res.setEncoding("utf8")
+      res.on("data", function(data){ body += data })
+      res.on("end", function() {
+        self.socket.send(JSON.stringify({
+          statusCode: res.statusCode,
+          headers: res.headers,
+          body: body || undefined
+        }))
+      })
+    })
+
+    if (data.body) req.write(data.body)
+
+    req.end()
+  }
+
+  else {
+    // invalid type
   }
 }
 

@@ -20,20 +20,6 @@
       return res.end(window.location.href)
     }
 
-    if (req.url.slice(0, 21) == "/document/body/style/") {
-      if (req.method != "PUT") return error(405, res)
-
-      var prop = req.url.slice(21)
-
-      prop = prop.replace(/-[a-z]/g, function(str) {
-        return str.slice(1).toUpperCase()
-      })
-
-      document.body.style[prop] = req.body
-      res.writeHead(204)
-      return res.end()
-    }
-
     error(404, res)
   }
 }()

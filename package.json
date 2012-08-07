@@ -20,9 +20,10 @@
     "brow-client": "0.0.x"
   },
   "devDependencies": {
-    "ws": "~0.4.21"
+    "ws": "~0.4.21",
+    "tap": "~0.3.0"
   },
   "scripts": {
-    "test": "node test/server.js"
+    "test": "tap --tap test/server.js"
   }
 }

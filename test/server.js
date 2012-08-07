@@ -1,9 +1,13 @@
 var PORT = "෴".charCodeAt()
 
-var exec   = require("child_process").exec
+var spawn  = require("child_process").spawn
 var assert = require("assert")
 var http   = require("http")
 var fs     = require("fs")
+
+var tap  = require("tap")
+var test = tap.test
+var plan = tap.plan
 
 var HttpServer       = require("http").Server
 var WebSocketServer  = require(  "ws").Server
@@ -40,23 +44,61 @@ servers.http.on("request", function(req, res) {
   res.end("Not found\n")
 })
 
+var url = "http://localhost.browserver.org:3572/"
+var clientHost
+var phantom
 
-var phantom = exec("phantomjs browser.js http://localhost.browserver.org:3572/", {cwd: __dirname})
+test("running tests...", function(t) {
+  t.test("launch client", function(t) {
+    servers.brow.on("connection", function(client) {
+      t.ok("id" in client, "client has an id")
+      t.equal(typeof client.id, "string", "client id is a string")
 
-servers.brow.on("connection", function(client) {
-  var href = "http://" + client.id + ".localhost.browserver.org:3572/location"
+      clientHost = client.id + ".localhost.browserver.org:3572"
+      t.end()
+    })
 
-  http.get(href, function(res) {
+    phantom = spawn("phantomjs", ["browser.js", url], {cwd: __dirname})
+  })
+
+  t.test("GET /location", function(t) {
+    var href = "http://" + clientHost + "/location"
     var location = ""
 
-    res.on("data", function(chunk){ location += chunk })
-    res.on("end", function() {
-      assert.equal(location, "http://localhost.browserver.org:3572/")
+    t.plan(1)
 
-      phantom.kill()
-      servers.ws.close()
-      servers.http.close()
-      process.exit()
+    http.get(href, function(res) {
+      res.on("data", function(chunk){ location += chunk })
+      res.on("end", function() {
+        t.equal(location, url, "original url returned")
+      })
     })
   })
+
+  t.test("GET /notFound", function(t) {
+    var href = "http://" + clientHost + "/notFound"
+
+    t.plan(1)
+
+    http.get(href, function(res) {
+      t.equal(res.statusCode, 404, "404 returned")
+    })
+  })
+
+  t.test("teardown", function(t) {
+    t.plan(1)
+
+    phantom.kill()
+    servers.ws.close()
+    servers.http.close(function() {
+      t.ok(true, "http server should close")
+    })
+  })
+
+  // t.test("exit", function(t) {
+  //   process.exit()
+  // })
+
+  t.end()
 })
+

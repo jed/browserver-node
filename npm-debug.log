@@ -1,0 +1,30 @@
+0 info it worked if it ends with ok
+1 verbose cli [ 'node', '/usr/local/bin/npm', 'init' ]
+2 info using npm@1.1.46
+3 info using node@v0.8.5
+4 verbose config file /Users/jed/.npmrc
+5 verbose config file /usr/local/etc/npmrc
+6 verbose config file /usr/local/lib/node_modules/npm/npmrc
+7 verbose read json /Users/jed/code/browserver-node/package.json
+8 silly package data undefined
+9 info init written successfully
+10 error Error: canceled
+10 error     at Interface.<anonymous> (/usr/local/lib/node_modules/npm/node_modules/read/lib/read.js:53:13)
+10 error     at Interface.EventEmitter.emit (events.js:115:20)
+10 error     at Interface._ttyWrite (readline.js:606:16)
+10 error     at ReadStream.onkeypress (readline.js:98:10)
+10 error     at ReadStream.EventEmitter.emit (events.js:115:20)
+10 error     at emitKey (readline.js:1057:12)
+10 error     at ReadStream.onData (readline.js:806:7)
+10 error     at ReadStream.EventEmitter.emit (events.js:88:17)
+10 error     at TTY.onread (net.js:403:14)
+11 error If you need help, you may report this log at:
+11 error     <http://github.com/isaacs/npm/issues>
+11 error or email it to:
+11 error     <npm-@googlegroups.com>
+12 error System Darwin 12.0.0
+13 error command "node" "/usr/local/bin/npm" "init"
+14 error cwd /Users/jed/code/browserver-node
+15 error node -v v0.8.5
+16 error npm -v 1.1.46
+17 verbose exit [ 1, true ]

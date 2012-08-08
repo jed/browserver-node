@@ -1,0 +1,29 @@
+{
+  "name": "brow",
+  "version": "0.0.0",
+  "description": "෴ A browserver proxy for node.js ෴",
+  "main": "browserver.js",
+  "repository": {
+    "type": "git",
+    "url": "git://github.com/jed/browserver-node.git"
+  },
+  "keywords": [
+    "websocket",
+    "http",
+    "server",
+    "browser",
+    "webhook"
+  ],
+  "author": "Jed Schmidt",
+  "license": "BSD",
+  "dependencies": {
+    "brow-client": "0.0.x"
+  },
+  "devDependencies": {
+    "ws": "~0.4.21",
+    "tap": "~0.3.0"
+  },
+  "scripts": {
+    "test": "tap --tap test/server.js"
+  }
+}

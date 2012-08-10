@@ -1,5 +1,5 @@
-  ෴ browserver-node ෴
-  ======================
+෴ browserver-node ෴
+======================
 
 This is a [browserver](http://browserver.org) proxy for [node.js](http://nodejs.org).
 

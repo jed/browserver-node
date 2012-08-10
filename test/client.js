@@ -1,5 +1,5 @@
 !function() {
-  var ws = new WebSocket("ws://localhost:3572")
+  var ws = new WebSocket("ws://vcap.me:3572")
   var server = http.createServer(onRequest).listen(ws)
 
   function error(code, res) {

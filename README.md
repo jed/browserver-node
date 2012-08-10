@@ -1,5 +1,5 @@
-෴ browserver-node ෴
-======================
+  ෴ browserver-node ෴
+  ======================
 
 This is a [browserver](http://browserver.org) proxy for [node.js](http://nodejs.org).
 
@@ -43,9 +43,6 @@ Installation
 browserver is available through npm.
 
 `npm install brow`
-
-Requirements
-------------
 
 API
 ---

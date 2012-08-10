@@ -1,6 +1,6 @@
 {
   "name": "brow",
-  "version": "0.0.0",
+  "version": "0.0.1",
   "description": "෴ A browserver proxy for node.js ෴",
   "main": "browserver.js",
   "repository": {

@@ -54,7 +54,7 @@ API
 
 This joins a WebSocket server and HTTP server, returning a new browserver instance. The `options` argument accepts the following properties:
 
-- `ws`: Required. Must be an instance of a WebSocket server (such as [ws](https://github.com/einaros/ws)) or compatible shim (such as [socket.io](https://github.com/learnboost/engine.io), [engine.io](https://github.com/learnboost/socket.io)) that emits socket instances through `connection` events.
+- `ws`: Required. Must be an instance of a WebSocket server (such as [ws](https://github.com/einaros/ws)) or compatible shim (such as [socket.io](https://github.com/learnboost/socket.io), [engine.io](https://github.com/learnboost/engine.io)) that emits socket instances through `connection` events.
 
 - `http`: Optional. If specified, must be an instance of `http.Server`. If omitted, an instance will be instantiated and bound to port `3572` (the Unicode codepoint for the brow `෴`).
 

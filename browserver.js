@@ -126,6 +126,7 @@ Client.prototype = new events.EventEmitter
 Client.prototype.attachSocket = function(socket) {
   socket.on("message", this.handleMessage.bind(this))
   socket.on("close", this.handleClose.bind(this))
+  socket.on("error", this.emit.bind(this, "error"))
 
   this.socket = socket
 

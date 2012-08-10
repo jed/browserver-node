@@ -151,7 +151,8 @@ Client.prototype.handleMessage = function(data) {
     var res = this.responses[id]
 
     res.writeHead(data.statusCode, data.headers)
-    res.end(data.body)
+
+    data.body ? res.end(data.body) : res.end()
 
     delete this.responses[id]
   }

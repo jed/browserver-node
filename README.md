@@ -58,7 +58,7 @@ This joins a WebSocket server and HTTP server, returning a new browserver instan
 
 - `http`: Optional. If specified, must be an instance of `http.Server`. If omitted, an instance will be instantiated and bound to port `3572` (the Unicode codepoint for the brow `෴`).
 
-- `host` Optional. If specified, must be a string containing one and only one asterisk (`*`) to be replaced with a socket id when a WebSocket connection is established. If omitted, CloudFoundry's [*.vcap.me](https://github.com/cloudfoundry/vcap/) domain is used, which resolves all domains/subdomains to `localhost`.
+- `host` Optional. If specified, must be a string containing one and only one asterisk (`*`), which is replaced with a socket id when a WebSocket connection is established. Note that this means you will need a wildcard CNAME or A record in your DNS settings that resolves to the appropriate domain or IP address. If omitted, CloudFoundry's [*.vcap.me](https://github.com/cloudfoundry/vcap/) domain is used, which resolves all domains/subdomains to `127.0.0.1`.
 
 ### browserver.on("connection", function(client){ ... })
 

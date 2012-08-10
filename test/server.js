@@ -44,7 +44,7 @@ servers.http.on("request", function(req, res) {
   res.end("Not found\n")
 })
 
-var url = "http://localhost.browserver.org:3572/"
+var url = "http://vcap.me:3572/"
 var clientHost
 var phantom
 
@@ -54,7 +54,7 @@ test("running tests...", function(t) {
       t.ok("id" in client, "client has an id")
       t.equal(typeof client.id, "string", "client id is a string")
 
-      clientHost = client.id + ".localhost.browserver.org:3572"
+      clientHost = client.id + ".vcap.me:3572"
       t.end()
     })
 

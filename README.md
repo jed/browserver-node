@@ -3,7 +3,9 @@
 
 This is a [browserver](http://browserver.org) proxy for [node.js](http://nodejs.org).
 
-It creates servers that act as a two-way proxies between an HTTP server and a WebSocket server, forwarding incoming HTTP requests to WebSocket connected clients and back, as well as incoming WebSocket messages to other HTTP servers and back.
+It creates servers that act as a two-way proxies between an HTTP server and a WebSocket server, forwarding incoming HTTP requests on to WebSocket connected clients and back, as well as incoming WebSocket messages to other HTTP servers and back.
+
+This library, along with [browserver-client](https://github.com/jed/browserver-client), is all the code you need to set up your own browserver.
 
 Example
 -------

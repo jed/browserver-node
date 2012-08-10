@@ -23,7 +23,7 @@ Server.prototype = new events.EventEmitter
 
 Server.prototype.ws = null
 Server.prototype.http = null
-Server.prototype.host = "*.localhost.browserver.org"
+Server.prototype.host = "*.vcap.me"
 
 Server.prototype.setHost = function(host) {
   if (host) this.host = host
@@ -132,7 +132,9 @@ Client.prototype.attachSocket = function(socket) {
   return this
 }
 
-Client.prototype.handleClose = function(){}
+Client.prototype.handleClose = function() {
+  delete this.server.clients[this.id]
+}
 
 Client.prototype.handleMessage = function(data) {
   var self = this

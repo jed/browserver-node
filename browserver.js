@@ -197,7 +197,6 @@ Client.prototype.handleRequest = function(req, res) {
   var id = Math.random().toString(36).slice(2)
 
   req.headers["x-brow-req-id"] = id
-  delete req.headers.host
   this.responses[id] = res
 
   var payload = JSON.stringify({

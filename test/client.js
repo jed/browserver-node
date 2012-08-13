@@ -13,11 +13,11 @@
   }
 
   function onRequest(req, res) {
-    if (req.url == "/location") {
-      if (req.method != "GET") return error(405, res)
+    if (req.url == "/echo") {
+      if (req.method != "POST") return error(405, res)
 
       res.writeHead(200, {"Content-Type": "text/plain"})
-      return res.end(window.location.href)
+      return res.end(req.body)
     }
 
     error(404, res)

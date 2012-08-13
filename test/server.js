@@ -3,6 +3,7 @@ var PORT = "෴".charCodeAt()
 var spawn  = require("child_process").spawn
 var assert = require("assert")
 var http   = require("http")
+var url    = require("url")
 var fs     = require("fs")
 
 var HttpServer       = require("http").Server
@@ -40,83 +41,69 @@ servers.http.on("request", function(req, res) {
   res.end("Not found\n")
 })
 
-var url = "http://vcap.me:3572/"
-var clientHost
-var phantom
-
 describe("browserver", function() {
-  before(function(done) {
-    phantom = spawn("phantomjs", ["browser.js", url], {cwd: __dirname})
+  var phantom
+  var host
 
+  before(function() {
+    phantom = spawn(
+      "phantomjs",
+      ["browser.js", "http://vcap.me:3572/"],
+      {cwd: __dirname}
+    )
+  })
+
+  it("should emit an incoming client", function(done) {
     servers.brow.on("connection", function(client) {
-      assert("id" in client, "client has an id")
-      assert.equal(typeof client.id, "string", "client id is a string")
+      assert.equal(typeof client.id, "string")
 
-      clientHost = client.id + ".vcap.me:3572"
+      host = client.id + ".vcap.me:3572"
       done()
     })
   })
 
-  describe("foo", function() {
-    it("is gay", function(done) {
+  it("should get a 404 for /doesnotexist", function(done) {
+    var url = "http://" + host + "/doesnotexist"
+
+    http.get(url, function(res) {
+      assert.equal(res.statusCode, 404)
       done()
     })
   })
 
+  it("should get a 405 for GET /echo", function(done) {
+    var url = "http://" + host + "/echo"
 
+    http.get(url, function(res) {
+      assert.equal(res.statusCode, 405)
+      done()
+    })
+  })
+
+  it("should get the original body back for POST /echo", function(done) {
+    var body = "hello, world."
+    var opts = url.parse("http://" + host + "/echo")
+
+    opts = {
+      method: "POST",
+      hostname: opts.hostname,
+      port: opts.port,
+      path: opts.path
+    }
+
+    var req = http.request(opts, function(res) {
+      assert.equal(res.statusCode, 200)
+
+      var remoteBody = ""
+      res.on("data", function(chunk){ remoteBody += chunk })
+      res.on("end", function() {
+        assert.equal(body, remoteBody)
+        done()
+      })
+    })
+
+    req.on("error", done)
+    req.write(body)
+    req.end()
+  })
 })
-
-// test("running tests...", function(t) {
-//   t.test("launch client", function(t) {
-//     servers.brow.on("connection", function(client) {
-//       t.ok("id" in client, "client has an id")
-//       t.equal(typeof client.id, "string", "client id is a string")
-
-//       clientHost = client.id + ".vcap.me:3572"
-//       t.end()
-//     })
-
-//     phantom = spawn("phantomjs", ["browser.js", url], {cwd: __dirname})
-//   })
-
-//   t.test("GET /location", function(t) {
-//     var href = "http://" + clientHost + "/location"
-//     var location = ""
-
-//     t.plan(1)
-
-//     http.get(href, function(res) {
-//       res.on("data", function(chunk){ location += chunk })
-//       res.on("end", function() {
-//         t.equal(location, url, "original url returned")
-//       })
-//     })
-//   })
-
-//   t.test("GET /notFound", function(t) {
-//     var href = "http://" + clientHost + "/notFound"
-
-//     t.plan(1)
-
-//     http.get(href, function(res) {
-//       t.equal(res.statusCode, 404, "404 returned")
-//     })
-//   })
-
-//   t.test("teardown", function(t) {
-//     t.plan(1)
-
-//     phantom.kill()
-//     servers.ws.close()
-//     servers.http.close(function() {
-//       t.ok(true, "http server should close")
-//     })
-//   })
-
-//   // t.test("exit", function(t) {
-//   //   process.exit()
-//   // })
-
-//   t.end()
-// })
-

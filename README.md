@@ -74,5 +74,4 @@ TODO
 ----
 
 - Add integrated hooks for authorization and authentication of requests, both incoming and outgoing.
-- Finish filling out phantomjs tests, and put them on travis-ci.
 - Consider using the standard HTTP format instead of JSON for communication.

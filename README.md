@@ -1,6 +1,8 @@
 ෴ browserver-node ෴
 ======================
 
+[![Build Status](https://secure.travis-ci.org/jed/browserver-node.png?branch=master)](http://travis-ci.org/jed/browserver-node)
+
 This is a [browserver](http://browserver.org) proxy for [node.js](http://nodejs.org).
 
 Use browserver-node to create servers that act as a two-way proxies between an HTTP server and a WebSocket server, by

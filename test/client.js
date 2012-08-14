@@ -17,7 +17,9 @@
       if (req.method != "POST") return error(405, res)
 
       res.writeHead(200, {"Content-Type": "text/plain"})
-      return res.end(req.body)
+      req.on("data", function(data){ res.write(data) })
+      req.on("end", function(){ res.end() })
+      return
     }
 
     error(404, res)

@@ -140,33 +140,32 @@ Client.prototype.handleClose = function() {
 Client.prototype.handleMessage = function(data) {
   var self = this
 
-  try { data = JSON.parse(data) }
-  catch (error) { return this.emit("error", error) }
+  data = parseHTTP.call({}, data.data || data)
 
   if (data.statusCode) {
-    data.headers["Content-Length"] = Buffer.byteLength(data.body)
-
     var id = data.headers["x-brow-req-id"]
-    delete data.headers["x-brow-req-id"]
-
     var res = this.responses[id]
+
+    data.headers["Content-Length"] = Buffer.byteLength(data._body)
+    delete data.headers["x-brow-req-id"]
 
     res.writeHead(data.statusCode, data.headers)
 
-    data.body ? res.end(data.body) : res.end()
+    if (data._body) res.write(data._body)
+
+    res.end()
 
     delete this.responses[id]
   }
 
   else if (data.method) {
-    data.path = data.url
-    delete data.path
-
-    data.host = data.headers.host
-    delete data.headers.host
-
     var id = data.headers["x-brow-req-id"]
     delete data.headers["x-brow-req-id"]
+
+    data = {
+      path: data.url,
+      host: data.headers.host
+    }
 
     var req = http.request(data, function(res) {
       var body = ""
@@ -175,38 +174,111 @@ Client.prototype.handleMessage = function(data) {
       res.setEncoding("utf8")
       res.on("data", function(data){ body += data })
       res.on("end", function() {
-        self.socket.send(JSON.stringify({
+        self.socket.send(serializeHTTP.call({
           statusCode: res.statusCode,
           headers: res.headers,
-          body: body || undefined
+          body: body || ""
         }))
       })
     })
 
-    if (data.body) req.write(data.body)
+    if (data._body) req.write(data._body)
 
     req.end()
   }
 
   else {
-    // invalid type
+    // invalid
   }
 }
 
 Client.prototype.handleRequest = function(req, res) {
   var id = Math.random().toString(36).slice(2)
-
   req.headers["x-brow-req-id"] = id
   this.responses[id] = res
 
-  var payload = JSON.stringify({
-    method: req.method,
-    headers: req.headers,
-    url: req.url,
-    body: req.body || undefined
-  })
+  var payload = ServerRequest.prototype.toString.call(req)
 
   this.socket.send(payload)
+}
+
+function ServerRequest(){}
+ServerRequest.prototype.toString = function() {
+  var str = this.method + " " + this.url + " HTTP/" + this.httpVersion + "\r\n"
+
+  for (var key in this.headers) {
+    str += key + ": " + this.headers[key] + "\r\n"
+  }
+
+  return str + "\r\n" + this.body
+}
+
+function ClientResponse(){}
+ClientResponse.prototype.toString = function() {
+  // TODO: find real HTTP version, reason code
+  var reason = http.STATUS_CODES[this.statusCode]
+  var str = "HTTP/" + ("1.1") + " " + this.statusCode + " " + reason + "\r\n"
+
+  for (var key in this.headers) {
+    str += key + ": " + this.headers[key] + "\r\n"
+  }
+
+  return str + "\r\n" + this.body
+}
+
+function parseHTTP(data) {
+  var pattern = /\r?\n/g
+  var headers = this.headers = {}
+  var match = pattern.exec(data)
+  var start = 0
+  var end = match.index
+  var row = data.slice(start, end).split(" ")
+
+  if (row[1] > 0) {
+    this.httpVersion = row[0].slice(5)
+    this.statusCode = +row[1]
+    this.reason = row[2]
+  }
+
+  else {
+    this.method = row[0]
+    this.url = row[1]
+    this.httpVersion = row[2].slice(5)
+  }
+
+  while (true) {
+    start = end + match[0].length
+    match = pattern.exec(data)
+    end = match.index
+    row = data.slice(start, end)
+
+    if (!row) break
+
+    start = row.match(/:\s*/)
+    headers[row.slice(0, start.index)] = row.slice(start.index + start[0].length)
+  }
+
+  this._body = data.slice(end + match[0].length)
+
+  return this
+}
+
+var CRLF = "\r\n"
+
+function serializeHTTP() {
+  var data = this.statusCode
+    ? "HTTP/" + this.httpVersion + " " + this.statusCode
+    : this.method + " " + this.url + " HTTP/" + this.httpVersion
+
+  data += CRLF
+
+  for (var name in this.headers) {
+    data += name + ": " + this.headers[name] + CRLF
+  }
+
+  data += CRLF + this._body
+
+  return data
 }
 
 exports.Server = Server

@@ -74,4 +74,3 @@ TODO
 ----
 
 - Add integrated hooks for authorization and authentication of requests, both incoming and outgoing.
-- Consider using the standard HTTP format instead of JSON for communication.

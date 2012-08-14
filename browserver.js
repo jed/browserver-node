@@ -93,9 +93,9 @@ Server.prototype.handleRequest = function(req, res) {
 
   if (!client) return this.handleError(504, res) // destroy connection instead?
 
-  req.body = ""
+  req._body = ""
   req.setEncoding("utf8")
-  req.on("data", function(chunk){ req.body += chunk })
+  req.on("data", function(chunk){ req._body += chunk })
   req.on("end", client.handleRequest.bind(client, req, res))
 }
 
@@ -197,33 +197,9 @@ Client.prototype.handleRequest = function(req, res) {
   req.headers["x-brow-req-id"] = id
   this.responses[id] = res
 
-  var payload = ServerRequest.prototype.toString.call(req)
+  var payload = serializeHTTP.call(req)
 
   this.socket.send(payload)
-}
-
-function ServerRequest(){}
-ServerRequest.prototype.toString = function() {
-  var str = this.method + " " + this.url + " HTTP/" + this.httpVersion + "\r\n"
-
-  for (var key in this.headers) {
-    str += key + ": " + this.headers[key] + "\r\n"
-  }
-
-  return str + "\r\n" + this.body
-}
-
-function ClientResponse(){}
-ClientResponse.prototype.toString = function() {
-  // TODO: find real HTTP version, reason code
-  var reason = http.STATUS_CODES[this.statusCode]
-  var str = "HTTP/" + ("1.1") + " " + this.statusCode + " " + reason + "\r\n"
-
-  for (var key in this.headers) {
-    str += key + ": " + this.headers[key] + "\r\n"
-  }
-
-  return str + "\r\n" + this.body
 }
 
 function parseHTTP(data) {

@@ -38,10 +38,10 @@ Proxy.prototype = new EventEmitter
 
 Proxy.prototype.hostname = "*.vcap.me"
 
-Proxy.prototype.listen = function(server) {
+Proxy.prototype.listen = function(server, options) {
   server instanceof http.Server || typeof server != "object"
-    ? this.listenHttp(server)
-    : this.listenWs(server)
+    ? this.listenHttp(server, options)
+    : this.listenWs(server, options)
 
   return this
 }

@@ -1,109 +1,163 @@
-var PORT = "෴".charCodeAt()
+var PORT
+var CLIENT_COUNT = 3
+var results = []
 
-var spawn  = require("child_process").spawn
+var exec   = require("child_process").exec
 var assert = require("assert")
 var http   = require("http")
 var url    = require("url")
 var fs     = require("fs")
 
+var log = console.log.bind(console)
+
 var HttpServer       = require("http").Server
 var WebSocketServer  = require(  "ws").Server
 var BrowServer       = require( "../").Server
-var browserverClient = require("brow-client")
 
 var servers = {}
 
-servers.http = new HttpServer().listen(PORT)
+servers.http = new HttpServer()
 servers.ws   = new WebSocketServer({server: servers.http})
-servers.brow = new BrowServer({ws: servers.ws, http: servers.http})
+servers.brow = new BrowServer().listen(servers.ws).listen(servers.http)
 
 var client = new Buffer(
   "<!doctype html>\n" +
-  "<script>" + browserverClient.source + "</script>\n" +
-  "<script>" + fs.readFileSync(__dirname + "/client.js"   , "utf8") + "</script>\n"
+  "<html>" +
+    "<body>" +
+      "<script>" + fs.readFileSync(__dirname + "/../node_modules/brow-client/browserver.js") + "</script>\n" +
+      "<script>" + fs.readFileSync(__dirname + "/client.js", "utf8") + "</script>\n" +
+    "</body>" +
+  "</html>"
 )
 
-servers.http.on("request", function(req, res) {
-  if (req.url == "/") {
-    res.writeHead(200, {
-      "Content-Type": "text/html",
-      "Content-Length": client.length
-    })
+var routes = {
+  "/": {
+    GET: function(req, res) {
+      res.writeHead(200, {
+        "Content-Type": "text/html; charset=utf8",
+        "Content-Length": client.length
+      })
 
-    return res.end(client)
+      res.end(client)
+    }
+  }
+}
+
+servers.http.on("request", onRequest)
+
+function onRequest(req, res) {
+  var match = req.url.match(/^[^?]+/)
+  var path = match && match[0]
+  var route = routes[path]
+  var handler = route && route[req.method]
+
+  if (!route) {
+    res.writeHead(404, {"Content-Type": "text/plain"})
+    res.end("Not found")
   }
 
-  res.writeHead(404, {
-    "Content-Type": "text/plain",
-    "Content-Length": 10
-  })
+  else if (!handler) {
+    res.writeHead(405, {"Content-Type": "text/plain"})
+    res.end("Method not allowed")
+  }
 
-  res.end("Not found\n")
+  else handler.call(this, req, res)
+}
+
+servers.http.listen(function() {
+  var address = this.address()
+
+  PORT = address.port
+
+  log(
+    "The browserver proxy is listening at http://%s:%s.",
+    address.address,
+    address.port
+  )
+
+  spawnClients(CLIENT_COUNT, function(err, clients) {
+    startTests(clients)
+  })
 })
 
-describe("browserver", function() {
-  var phantom
-  var host
+var command = process.argv[2] == "--headless"
+  ? "phantomjs browser.js"
+  : "open"
 
-  before(function() {
-    phantom = spawn(
-      "phantomjs",
-      ["browser.js", "http://vcap.me:3572/"],
-      {cwd: __dirname}
-    )
+function spawnClient(cb) {
+  var url   = "http://localhost:" + PORT
+  var child = exec(command + " " + url, {cwd: __dirname})
+
+  servers.brow.once("connection", function(client) {
+    cb(null, client)
   })
+}
 
-  it("should emit an incoming client", function(done) {
-    servers.brow.on("connection", function(client) {
-      assert.equal(typeof client.id, "string")
+function spawnClients(count, cb) {
+  log("Spawning %s clients...", count)
 
-      host = client.id + ".vcap.me:3572"
-      done()
-    })
+  var clients = []
+
+  spawnClient(function onClient(err, client) {
+    clients.push(client)
+
+    log("Client #%s of %s spawned (%s)...", clients.length, count, client)
+
+    if (clients.length < count) return spawnClient(onClient)
+
+    log("All clients spawned.")
+    cb(null, clients)
   })
+}
 
-  it("should get a 404 for /doesnotexist", function(done) {
-    var url = "http://" + host + "/doesnotexist"
+function startTests(clients) {
+  var client_count = clients.length
+  var test_count = client_count * (client_count - 1)
 
-    http.get(url, function(res) {
-      assert.equal(res.statusCode, 404)
-      done()
-    })
-  })
+  log(
+    "Setting up %s tests (%s for each of %s testers)",
+    test_count,
+    client_count - 1,
+    client_count
+  )
 
-  it("should get a 405 for GET /echo", function(done) {
-    var url = "http://" + host + "/echo"
+  clients.forEach(function(testee, testeeNum) {
+    clients.forEach(function(tester, testerNum) {
+      if (tester == testee) return
 
-    http.get(url, function(res) {
-      assert.equal(res.statusCode, 405)
-      done()
-    })
-  })
+      var options = {
+        method: "POST",
+        hostname: tester,
+        port: PORT,
+        path: "/testees",
+        headers: {
+          "Content-Type": "text/plain"
+        }
+      }
 
-  it("should get the original body back for POST /echo", function(done) {
-    var body = "hello, world."
-    var opts = url.parse("http://" + host + "/echo")
+      var req = http.request(options, function(res) {
+        log("Client #%s tested client #%s...", testerNum + 1, testeeNum + 1)
 
-    opts = {
-      method: "POST",
-      hostname: opts.hostname,
-      port: opts.port,
-      path: opts.path
-    }
+        if (res.statusCode == 204) {
+          log("OK.")
 
-    var req = http.request(opts, function(res) {
-      assert.equal(res.statusCode, 200)
+          if (--test_count) return
 
-      var remoteBody = ""
-      res.on("data", function(chunk){ remoteBody += chunk })
-      res.on("end", function() {
-        assert.equal(body, remoteBody)
-        done()
+          log("Done")
+          process.exit(0)
+        }
+
+        var reason = ""
+
+        res.on("data", function(chunk){ reason += chunk })
+        res.on("end", function() {
+          throw new Error("ERROR: " + reason)
+        })
       })
-    })
 
-    req.on("error", done)
-    req.write(body)
-    req.end()
+      req.write(testee + ":" + PORT)
+
+      req.end()
+    })
   })
-})
+}

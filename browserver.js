@@ -1,261 +1,230 @@
-var events = require("events")
-var http   = require("http")
-var url    = require("url")
+var http = require("http")
+var brow = require("brow-client")
 
-function Server(opts) {
-  events.EventEmitter.call(this)
+var EventEmitter = brow.EventEmitter
+var Request      = brow.Request
+var Response     = brow.Response
 
-  this.clients = {}
-  this.responses = {}
+Request.prototype.authorize = function(cb){ cb() }
 
-  this.Client = function(){ Client.call(this) }
-  this.Client.prototype = new Client
-  this.Client.prototype.server = this
-
-  if (!opts) opts = {}
-
-  this.setHost(opts.host)
-  this.attachWs(opts.ws)
-  this.attachHttp(opts.http, opts.port)
-}
-
-Server.prototype = new events.EventEmitter
-
-Server.prototype.ws = null
-Server.prototype.http = null
-Server.prototype.host = "*.vcap.me"
-
-Server.prototype.setHost = function(host) {
-  if (host) this.host = host
-
-  if (this.host.split("*").length != 2) {
-    throw new Error("Specified host must have one and only one `*`.")
-  }
-
-  var hostPattern = this.host
-    .replace(/\./g, "\\.")
-    .replace(/\*/g, "([a-zA-Z0-9-]+)")
-
-  this.hostPattern = new RegExp("^" + hostPattern + "$")
-
-  return this
-}
-
-Server.prototype.attachWs = function(server) {
-  this.ws = server
-
-  if (!this.ws) throw new Error("No WebSocket server specified.")
-
-  this.ws.on("connection", this.handleConnection.bind(this))
-
-  return this
-}
-
-Server.prototype.attachHttp = function(server, port) {
-  this.http = server
-
-  if (!this.http) {
-    if (!port) port = "෴".charCodeAt()
-
-    this.http = http.createServer().listen(port)
-    this.http.on("request", function(req, res) {
-      this.handleError(501, res)
-    }.bind(this))
-  }
-
-  this.http.emit = function(event, req, res) {
-    event == "request"
-      ? this.handleRequest(req, res)
-      : http.Server.prototype.emit.apply(this.http, arguments)
-  }.bind(this)
-
-  return this
-}
-
-Server.prototype.handleConnection = function(socket) {
-  var client = new this.Client().attachSocket(socket)
-
-  this.clients[client.id] = client
-
-  this.emit("connection", client)
-}
-
-Server.prototype.handleRequest = function(req, res) {
-  var host = req.headers.host
-  var hostname = host && host.split(":")[0]
-  var match = hostname && hostname.match(this.hostPattern)
-  var id = match && match[1]
-  var emit = http.Server.prototype.emit
-
-  if (!id) return emit.call(this.http, "request", req, res)
-
-  var client = this.clients[id]
-
-  if (!client) return this.handleError(504, res) // destroy connection instead?
-
-  req._body = ""
-  req.setEncoding("utf8")
-  req.on("data", function(chunk){ req._body += chunk })
-  req.on("end", client.handleRequest.bind(client, req, res))
-}
-
-Server.prototype.handleError = function(code, res) {
+Response.prototype.error = function(code, message) {
   if (!code) code = 500
+  if (!message) message = http.STATUS_CODES[code]
 
-  var reason = http.STATUS_CODES[code] + "\n"
-
-  res.writeHead(code, {
+  this.writeHead(code, {
     "Content-Type": "text/plain",
-    "Content-Length": Buffer.byteLength(reason)
+    "Content-Length": Buffer.byteLength(message)
   })
 
-  res.end(reason)
+  this.end(message)
 }
 
-function Client() {
-  this.id = Client.id()
-  this.responses = {}
+function Proxy() {
+  EventEmitter.call(this)
+
+  this.servers = {}
+
+  this.Server = function(){ Server.call(this) }
+  this.Server.prototype = new Server
+
+  this.Server.prototype.ServerRequest = function(){ Request.call(this) }
+  this.Server.prototype.ServerRequest.prototype = new Request
+
+  this.Server.prototype.ClientRequest = function(){ Request.call(this) }
+  this.Server.prototype.ClientRequest.prototype = new Request
 }
 
-Client.id = function() {
-  return Math.random().toString(36).slice(2)
-}
+Proxy.prototype = new EventEmitter
 
-Client.prototype = new events.EventEmitter
+Proxy.prototype.hostname = "*.vcap.me"
 
-Client.prototype.attachSocket = function(socket) {
-  socket.on("message", this.handleMessage.bind(this))
-  socket.on("close", this.handleClose.bind(this))
-  socket.on("error", this.emit.bind(this, "error"))
-
-  this.socket = socket
+Proxy.prototype.listen = function(server) {
+  server instanceof http.Server || typeof server != "object"
+    ? this.listenHttp(server)
+    : this.listenWs(server)
 
   return this
 }
 
-Client.prototype.handleClose = function() {
-  delete this.server.clients[this.id]
-}
+Proxy.prototype.listenWs = function(wsServer, options) {
+  var proxy = this
 
-Client.prototype.handleMessage = function(data) {
-  var self = this
+  if (!options) options = {}
 
-  data = parseHTTP.call({}, data.data || data)
-
-  if (data.statusCode) {
-    var id = data.headers["x-brow-req-id"]
-    var res = this.responses[id]
-
-    data.headers["Content-Length"] = Buffer.byteLength(data._body)
-    delete data.headers["x-brow-req-id"]
-
-    res.writeHead(data.statusCode, data.headers)
-
-    if (data._body) res.write(data._body)
-
-    res.end()
-
-    delete this.responses[id]
+  if (options.authorize) {
+    this.Server.prototype.ServerRequest.prototype.authorize = options.authorize
   }
 
-  else if (data.method) {
-    var id = data.headers["x-brow-req-id"]
-    delete data.headers["x-brow-req-id"]
+  this.ws = wsServer
 
-    data = {
-      path: data.url,
-      host: data.headers.host
+  wsServer.on("connection", function(socket) {
+    var server = new proxy.Server(options)
+    var hostname = proxy.hostname.replace("*", server.id)
+
+    proxy.servers[hostname] = server
+
+    socket.on("close", function() {
+      delete proxy.servers[hostname]
+      proxy.emit("disconnection", hostname)
+    })
+
+    server.listen(socket)
+
+    proxy.emit("connection", hostname)
+  })
+}
+
+Proxy.prototype.listenHttp = function(httpServer, options) {
+  if (typeof httpServer == "string") {
+    hostname = httpServer
+    httpServer = null
+  }
+
+  if (!(httpServer instanceof http.Server)) {
+    httpServer = http.createServer().listen(httpServer)
+  }
+
+  this.http = httpServer
+
+  if (!options) options = {}
+
+  if (options.authorize) {
+    this.Server.prototype.ServerRequest.prototype.authorize = options.authorize
+  }
+
+  if (options.hostname) this.hostname = options.hostname
+
+  this.hostPattern = new RegExp("^" +
+    this.hostname
+      .replace(/\./g, "\\.")
+      .replace(/\*/g, "[a-zA-Z0-9-]+") +
+  "$")
+
+  var emit = httpServer.emit
+  var proxy = this
+
+  httpServer.emit = function(event, req, res) {
+    if (event != "request") return emit.apply(this, arguments)
+
+    var host = req.headers.host || "localhost"
+    var hostname = host.split(":")[0]
+
+    if (!proxy.hostPattern.test(hostname)) {
+      return emit.apply(this, arguments)
     }
 
-    var req = http.request(data, function(res) {
-      var body = ""
+    var server = proxy.servers[hostname]
 
-      res.headers["x-brow-req-id"] = id
-      res.setEncoding("utf8")
-      res.on("data", function(data){ body += data })
+    if (!server) return Response.prototype.error.call(res, 504)
+
+    var ip = req.connection.remoteAddress
+    var forwardedFor = req.headers["x-forwarded-for"]
+
+    if (forwardedFor) ip = forwardedFor + ", " + ip
+
+    req.headers["x-forwarded-for"] = ip
+    req.authorize = server.ServerRequest.prototype.authorize
+
+    server.onserverrequest(req, res)
+  }
+}
+
+function Server() {
+  this.id = brow.guid()
+
+  this.requests = {}
+  this.responses = {}
+}
+
+Server.prototype.listen = function(socket) {
+  this.socket = socket
+
+  var server = this
+
+  socket.on("message", function(data) {
+    var req = (new server.ClientRequest).parse(data)
+
+    if (req) return server.onclientrequest(req)
+
+    var res = (new Response).parse(data)
+
+    if (res) server.onserverresponse(res)
+  })
+}
+
+Server.prototype.onserverrequest = function(req, res) {
+  var server = this
+
+  req.authorize(function(err) {
+    if (err) return Response.prototype.error.call(res, 403, err.message)
+
+    var socket = server.socket
+
+    req.id = brow.guid()
+    req.body = ""
+
+    server.responses[req.id] = res
+
+    req.on("data", function(chunk){ req.body += chunk })
+    req.on("end", function() {
+      socket.send(Request.prototype.serialize.call(req))
+    })
+  })
+}
+
+Server.prototype.onserverresponse = function(res) {
+  var response = this.responses[res.id]
+
+  if (!response) return
+
+  response.writeHead(res.statusCode, res.headers)
+  response.write(res.body)
+  response.end()
+}
+
+Server.prototype.onclientrequest = function(req) {
+  var socket = this.socket
+
+  req.authorize(function(err) {
+    if (err) {
+      var res = new Response
+
+      res.statusCode = 403
+      res.headers = {"content-type": "text/plain"}
+      res.reasonPhrase = http.STATUS_CODES[403]
+      res.id = req.id
+      res.body = err.message || res.reasonPhrase
+
+      return socket.send(res.serialize())
+    }
+
+    var host = req.headers.host
+    delete req.headers.host
+
+    host = host ? host.split(":") : ["localhost"]
+
+    var opts = {
+      method: req.method,
+      hostname: host[0],
+      port: host[1],
+      path: req.url,
+      headers: req.headers
+    }
+
+    var request = http.request(opts, function(res) {
+      res.body = ""
+      res.id = req.id
+
+      res.on("data", function(chunk){ res.body += chunk })
       res.on("end", function() {
-        self.socket.send(serializeHTTP.call({
-          statusCode: res.statusCode,
-          headers: res.headers,
-          body: body || ""
-        }))
+        socket.send(Response.prototype.serialize.call(res))
       })
     })
 
-    if (data._body) req.write(data._body)
-
-    req.end()
-  }
-
-  else {
-    // invalid
-  }
+    request.write(req.body)
+    request.end()
+  })
 }
 
-Client.prototype.handleRequest = function(req, res) {
-  var id = Math.random().toString(36).slice(2)
-  req.headers["x-brow-req-id"] = id
-  this.responses[id] = res
-
-  var payload = serializeHTTP.call(req)
-
-  this.socket.send(payload)
-}
-
-function parseHTTP(data) {
-  var pattern = /\r?\n/g
-  var headers = this.headers = {}
-  var match = pattern.exec(data)
-  var start = 0
-  var end = match.index
-  var row = data.slice(start, end).split(" ")
-
-  if (row[1] > 0) {
-    this.httpVersion = row[0].slice(5)
-    this.statusCode = +row[1]
-    this.reason = row[2]
-  }
-
-  else {
-    this.method = row[0]
-    this.url = row[1]
-    this.httpVersion = row[2].slice(5)
-  }
-
-  while (true) {
-    start = end + match[0].length
-    match = pattern.exec(data)
-    end = match.index
-    row = data.slice(start, end)
-
-    if (!row) break
-
-    start = row.match(/:\s*/)
-    headers[row.slice(0, start.index)] = row.slice(start.index + start[0].length)
-  }
-
-  this._body = data.slice(end + match[0].length)
-
-  return this
-}
-
-var CRLF = "\r\n"
-
-function serializeHTTP() {
-  var data = this.statusCode
-    ? "HTTP/" + this.httpVersion + " " + this.statusCode
-    : this.method + " " + this.url + " HTTP/" + this.httpVersion
-
-  data += CRLF
-
-  for (var name in this.headers) {
-    data += name + ": " + this.headers[name] + CRLF
-  }
-
-  data += CRLF + this._body
-
-  return data
-}
-
-exports.Server = Server
-exports.Client = Client
+exports.Server = Proxy
+exports.createServer = function(){ return new Proxy }

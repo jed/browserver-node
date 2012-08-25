@@ -30,11 +30,9 @@ var httpServer = http.createServer(handler)
 var wsServer   = engine.attach(httpServer)
 
 // pass each to a new browserver...
-var browServer = new brow.Server({
-  http: httpServer,
-  ws: wsServer,
-  host: "*.mydomain.org"
-})
+var browServer = new brow.Server
+browServer.listen(wsServer)
+browServer.listen(httpServer, {hostname: "*.mydomain.org"})
 
 // ... and start listening!
 httpServer.listen(80, function() {
@@ -52,25 +50,32 @@ browserver is available through npm.
 API
 ---
 
-### browserver = new brow.Server(options)
+### browserver = new brow.Server
 
-This joins a WebSocket server and HTTP server, returning a new browserver instance. The `options` argument accepts the following properties:
+This creates a new browserver proxy, which works by listening to both a WebSocket-alike server and an HTTP server.
 
-- `ws`: Required. Must be an instance of a WebSocket server (such as [ws](https://github.com/einaros/ws)) or compatible shim (such as [socket.io](https://github.com/learnboost/socket.io), [engine.io](https://github.com/learnboost/engine.io)) that emits socket instances through `connection` events.
+### browserver.listen(webSocketServer, [options])
 
-- `http`: Optional. If specified, must be an instance of `http.Server`. If omitted, an instance will be instantiated and bound to port `3572` (the Unicode codepoint for the brow `෴`).
+`webSocketServer` is required, and must be an instance of a WebSocket server (such as [ws](https://github.com/einaros/ws)) or compatible shim (such as [socket.io](https://github.com/learnboost/socket.io), [engine.io](https://github.com/learnboost/engine.io)) that emits socket instances through `connection` events.
 
-- `host` Optional. If specified, must be a string containing one and only one asterisk (`*`), which is replaced with a socket id when a WebSocket connection is established. Note that this means you will need a wildcard CNAME or A record in your DNS settings that resolves to the appropriate domain or IP address. If omitted, CloudFoundry's [*.vcap.me](https://github.com/cloudfoundry/vcap/) domain is used, which resolves all domains/subdomains to `127.0.0.1`.
+`options` is an optional object that can have any of the following properties:
 
-### browserver.on("connection", function(client){ ... })
+- `authorize`: An optional request method used for authorization of client requests FROM the browser. This method is invoked with the request as the `this` context and a callback as the first argument (`authorize.call(request, callback)`). If this method calls back without an error, the request will be passed on. If this method calls back with an error, a 403 is returned with the error message as the body of the response. By default, browserver will forward-proxy any request from a browser to the greater Internet, so use this method to limit the resources to which browserver clients have access.
 
-The browserver server emits a `connection` event with a WebSocket-connected browserver client, whenever one connects. Each client is an instance of `brow.Client`, with an `id` property that defaults to a random lowercase alphanumeric string generated upon instantiation. How these ids are generated can be customized by overriding the static `brow.Client.id` method.
+### browserver.listen(httpServer, [options])
 
-### client.on("close", function(){ ... })
+`httpServer` is required, and can either be an instance of `http.Server`, or a primitive (such as `3572` or `undefined`) to be used as the port on which a new server instance will listen.
 
-browserver clients emit a `close` event when their underlying WebSocket is closed.
+`options` is an optional object that can have any of the following properties:
 
-TODO
-----
+- `hostname` Optional. If specified, must be a string containing one and only one asterisk (`*`), which is replaced with a socket id when a WebSocket connection is established. Note that this means you will need a wildcard CNAME or A record in your DNS settings that resolves to the appropriate domain or IP address. If omitted, CloudFoundry's [*.vcap.me](https://github.com/cloudfoundry/vcap/) domain is used, which resolves all domains/subdomains to `127.0.0.1`.
 
-- Add integrated hooks for authorization and authentication of requests, both incoming and outgoing.
+- `authorize`: An optional request method used for authorization of server requests TO the browser. This method is invoked with the request as the `this` context and a callback as the first argument (`authorize.call(request, callback)`). If this method calls back without an error, the request will be passed on to the browserver client. If this method calls back with an error, a 403 is returned with the error message as the body of the response. By default, browserver will reverse-proxy any request from the greater Internet to a browserver clients, so use this method to authenticate or limit the requests actually sent to which browserver clients.
+
+### browserver.on("connection", function(hostname){ ... })
+
+The browserver server proxy emits a `connection` event whenever a browserver client connects. The listener is called with one argument, the hostname of the browserver client.
+
+### browserver.on("disconnection", function(hostname){ ... })
+
+The browserver server proxy emits a `disconnection` event whenever a browserver client disconnects. The listener is called with one argument, the hostname of the browserver client.

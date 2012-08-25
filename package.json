@@ -17,7 +17,7 @@
   "author": "Jed Schmidt",
   "license": "BSD",
   "dependencies": {
-    "brow-client": "*"
+    "brow-client": "git://github.com/jed/browserver-client.git"
   },
   "devDependencies": {
     "ws": "~0.4.21"

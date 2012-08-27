@@ -24,7 +24,7 @@ var client = new Buffer(
   "<!doctype html>\n" +
   "<html>" +
     "<body>" +
-      "<script>" + fs.readFileSync(__dirname + "/../node_modules/brow-client/browserver.js") + "</script>\n" +
+      "<script>" + fs.readFileSync(__dirname + "/../node_modules/browserver-client/browserver.js") + "</script>\n" +
       "<script>" + fs.readFileSync(__dirname + "/client.js", "utf8") + "</script>\n" +
     "</body>" +
   "</html>"

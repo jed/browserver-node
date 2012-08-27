@@ -19,7 +19,7 @@ Example
 // http, websocket, and browservers
 var http   = require("http")
 var engine = require("engine.io")
-var brow   = require("brow")
+var brow   = require("browserver")
 
 function handler(req, res) {
   // your usual HTTP server logic
@@ -45,7 +45,7 @@ Installation
 
 browserver is available through npm.
 
-`npm install brow`
+`npm install browserver`
 
 API
 ---

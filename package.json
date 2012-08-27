@@ -1,5 +1,5 @@
 {
-  "name": "brow",
+  "name": "browserver",
   "version": "0.1.0",
   "description": "෴ A browserver proxy for node.js ෴",
   "main": "browserver.js",
@@ -17,7 +17,7 @@
   "author": "Jed Schmidt",
   "license": "BSD",
   "dependencies": {
-    "brow-client": "git://github.com/jed/browserver-client.git"
+    "browserver-client": "git://github.com/jed/browserver-client.git"
   },
   "devDependencies": {
     "ws": "~0.4.21"

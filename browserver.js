@@ -1,5 +1,5 @@
 var http = require("http")
-var brow = require("brow-client")
+var brow = require("browserver-client")
 
 var EventEmitter = brow.EventEmitter
 var Request      = brow.Request

@@ -150,6 +150,19 @@ Server.prototype.listen = function(socket) {
 
     if (res) server.onserverresponse(res)
   })
+
+  socket.on("close", function() {
+    var responses = server.responses
+
+    for (var id in responses) {
+      Response.prototype.error.call(responses[id], 504)
+      delete responses[id]
+    }
+  })
+
+  socket.on("error", function(error) {
+    console.log(error.message, error.stack)
+  })
 }
 
 Server.prototype.onserverrequest = function(req, res) {

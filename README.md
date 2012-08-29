@@ -72,10 +72,10 @@ This creates a new browserver proxy, which works by listening to both a WebSocke
 
 - `authorize`: An optional request method used for authorization of server requests TO the browser. This method is invoked with the request as the `this` context and a callback as the first argument (`authorize.call(request, callback)`). If this method calls back without an error, the request will be passed on to the browserver client. If this method calls back with an error, a 403 is returned with the error message as the body of the response. By default, browserver will reverse-proxy any request from the greater Internet to a browserver clients, so use this method to authenticate or limit the requests actually sent to which browserver clients.
 
-### browserver.on("connection", function(hostname){ ... })
+### browserver.on("connection", function(server){ ... })
 
-The browserver server proxy emits a `connection` event whenever a browserver client connects. The listener is called with one argument, the hostname of the browserver client.
+The browserver server proxy emits a `connection` event whenever a browserver client connects. The listener is called with one argument, the browserver server. The server's unique hostname is available at the `hostname` propery.
 
-### browserver.on("disconnection", function(hostname){ ... })
+### browserver.on("disconnection", function(server){ ... })
 
-The browserver server proxy emits a `disconnection` event whenever a browserver client disconnects. The listener is called with one argument, the hostname of the browserver client.
+The browserver server proxy emits a `disconnection` event whenever a browserver client disconnects. The listener is called with one argument, the disconnected browserver server.

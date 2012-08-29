@@ -89,7 +89,7 @@ function spawnClient(cb) {
   var child = exec(command + " " + url, {cwd: __dirname})
 
   servers.brow.once("connection", function(client) {
-    cb(null, client)
+    cb(null, client.hostname)
   })
 }
 

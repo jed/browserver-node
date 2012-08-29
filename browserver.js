@@ -61,16 +61,18 @@ Proxy.prototype.listenWs = function(wsServer, options) {
     var server = new proxy.Server(options)
     var hostname = proxy.hostname.replace("*", server.id)
 
+    server.hostname = hostname
+
     proxy.servers[hostname] = server
 
     socket.on("close", function() {
       delete proxy.servers[hostname]
-      proxy.emit("disconnection", hostname)
+      proxy.emit("disconnection", server)
     })
 
     server.listen(socket)
 
-    proxy.emit("connection", hostname)
+    proxy.emit("connection", server)
   })
 }
 
